@@ -1,0 +1,101 @@
+// use prisma-next
+
+types {
+  Uuid = String
+}
+
+enum DebtType {
+  @@type("pg/text@1")
+
+  loan        = "loan"
+  credit_card = "credit_card"
+  third_party = "third_party"
+}
+
+enum PaymentStatus {
+  @@type("pg/text@1")
+
+  on_time = "on_time"
+  late    = "late"
+  partial = "partial"
+}
+
+enum PrepaymentChoice {
+  @@type("pg/text@1")
+
+  reduce_tenure = "reduce_tenure"
+  reduce_emi    = "reduce_emi"
+}
+
+model User {
+  id                     Uuid      @id @default(uuid())
+  email                  String    @unique
+  passwordHash           String    @map("password_hash")
+  isVerified             Boolean   @default(false) @map("is_verified")
+  verificationCodeHash   String?   @map("verification_code_hash")
+  verificationCodeExpiry DateTime? @map("verification_code_expiry")
+  verificationAttempts  Int       @default(0) @map("verification_attempts")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @map("updated_at")
+
+  debts         Debt[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model Debt {
+  id               Uuid      @id @default(uuid())
+  userId           Uuid      @map("user_id")
+  debtType         DebtType  @map("debt_type")
+  name             String
+  principal        Decimal
+  monthlyRepayment Decimal   @map("monthly_repayment")
+  tenureMonths     Int?      @map("tenure_months")
+  interestRate     Decimal?  @map("interest_rate")
+  dueDay           Int       @map("due_day")
+  status           String    @default("active")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([userId])
+  @@index([dueDay, status])
+  @@map("debts")
+}
+
+model Payment {
+  id               Uuid              @id @default(uuid())
+  debtId           Uuid              @map("debt_id")
+  amount           Decimal
+  paidAt           DateTime          @default(now()) @map("paid_at")
+  status           PaymentStatus
+  penaltyApplied   Decimal           @default(0) @map("penalty_applied")
+  isPrepayment     Boolean           @default(false) @map("is_prepayment")
+  prepaymentChoice PrepaymentChoice?  @map("prepayment_choice")
+  createdAt        DateTime           @default(now()) @map("created_at")
+
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
+
+  @@index([debtId])
+  @@map("payments")
+}
+
+model RefreshToken {
+  id         Uuid      @id @default(uuid())
+  userId     Uuid      @map("user_id")
+  tokenHash  String    @map("token_hash")
+  deviceInfo String?   @map("device_info")
+  ipAddress  String?   @map("ip_address")
+  expiresAt  DateTime  @map("expires_at")
+  revoked    Boolean   @default(false)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
