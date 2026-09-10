@@ -1,5 +1,5 @@
 const express = require("express");
-const prisma = require("./config/db");
+const prisma = require("./src/config/db.js");
 
 const app = express();
 
