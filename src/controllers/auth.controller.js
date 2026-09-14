@@ -4,6 +4,7 @@ const {
   loginUser,
   refreshAccessToken,
   logoutUser,
+  logoutAllUser,
 } = require("../services/auth.service");
 
 const REFRESH_COOKIE_OPTIONS = {
@@ -84,4 +85,15 @@ async function logout(req, res, next) {
   }
 }
 
-module.exports = { register, verify, login, refresh, logout };
+async function logoutAll(req, res, next) {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+    await logoutAllUser({ refreshToken });
+    res.clearCookie("refreshToken", REFRESH_COOKIE_OPTIONS);
+    res.status(200).json({ message: "Logged out from all devices" });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { register, verify, login, refresh, logout, logoutAll };

@@ -184,10 +184,42 @@ async function logoutUser({ refreshToken }) {
   }
 }
 
+async function logoutAllUser({ refreshToken }) {
+  if (!refreshToken) {
+    const err = new Error("Refresh token missing");
+    err.status = 401;
+    throw err;
+  }
+
+  const candidates = await prisma.refreshToken.findMany({
+    where: { revoked: false },
+  });
+
+  let matched = null;
+  for (const candidate of candidates) {
+    if (await compareRefreshToken(refreshToken, candidate.tokenHash)) {
+      matched = candidate;
+      break;
+    }
+  }
+
+  if (!matched) {
+    const err = new Error("Invalid or expired refresh token");
+    err.status = 401;
+    throw err;
+  }
+
+  await prisma.refreshToken.updateMany({
+    where: { userId: matched.userId, revoked: false },
+    data: { revoked: true },
+  });
+}
+
 module.exports = {
   registerUser,
   verifyUser,
   loginUser,
   refreshAccessToken,
   logoutUser,
+  logoutAllUser,
 };

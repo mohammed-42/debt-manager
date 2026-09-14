@@ -3,13 +3,13 @@ const prisma = require("./src/config/db.js");
 const authRoutes = require("./src/routes/auth.routes");
 const cookieParser = require("cookie-parser");
 const debtRoutes = require("./src/routes/debt.routes.js");
-
+const paymentRoutes = require("./src/routes/payment.routes.js");
 
 const app = express();
 app.use(cookieParser());
 app.use(express.json());
 app.use("/debts", debtRoutes);
-
+app.use("/debts", paymentRoutes);
 
 app.get("/test-db", async (req, res) => {
   try {

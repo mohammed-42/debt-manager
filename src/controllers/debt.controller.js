@@ -1,4 +1,4 @@
-const { createDebt, listDebts, updateDebt, deleteDebt } = require("../services/debt.service");
+const { createDebt, listDebts, updateDebt, deleteDebt, getDebtDetail } = require("../services/debt.service");
 
 async function create(req, res, next) {
   try {
@@ -36,4 +36,13 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { create, list, update, remove };
+async function getOne(req, res, next) {
+  try {
+    const debt = await getDebtDetail(req.userId, req.params.id);
+    res.status(200).json({ debt });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { create, list, update, remove, getOne };
