@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const app = require("./app");
 const { startReminderJob } = require("./src/jobs/reminder.job");
 

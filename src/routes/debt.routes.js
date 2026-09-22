@@ -1,6 +1,14 @@
 const express = require("express");
 const requireAuth = require("../middleware/auth.middleware");
-const { create, list, update, remove, getOne } = require("../controllers/debt.controller");
+
+const {
+  create,
+  list,
+  update,
+  remove,
+  getOne,
+  payPenalty,
+} = require("../controllers/debt.controller");
 
 const router = express.Router();
 
@@ -8,6 +16,9 @@ router.use(requireAuth);
 
 router.post("/", create);
 router.get("/", list);
+
+router.patch("/:id/penalty", payPenalty);
+
 router.get("/:id", getOne);
 router.put("/:id", update);
 router.delete("/:id", remove);

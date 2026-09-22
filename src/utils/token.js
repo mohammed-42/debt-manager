@@ -15,6 +15,10 @@ function generateRefreshToken() {
   return crypto.randomBytes(48).toString("hex");
 }
 
+function getRefreshTokenLookupHash(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
 async function hashRefreshToken(token) {
   return bcrypt.hash(token, 12);
 }
@@ -38,4 +42,5 @@ module.exports = {
   compareRefreshToken,
   getRefreshTokenExpiry,
   verifyAccessToken,
+  getRefreshTokenLookupHash,
 };

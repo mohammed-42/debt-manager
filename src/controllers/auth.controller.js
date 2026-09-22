@@ -1,3 +1,4 @@
+
 const {
   registerUser,
   verifyUser,
@@ -17,11 +18,19 @@ const REFRESH_COOKIE_OPTIONS = {
 async function register(req, res, next) {
   try {
     const { email, password } = req.body;
+
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
     }
+
     const user = await registerUser({ email, password });
-    res.status(201).json({ message: "Registered. Check your email for a verification code.", user });
+
+    res.status(201).json({
+      message: "Registered. Check your email for a verification code.",
+      user,
+    });
   } catch (err) {
     next(err);
   }
@@ -30,11 +39,19 @@ async function register(req, res, next) {
 async function verify(req, res, next) {
   try {
     const { email, code } = req.body;
+
     if (!email || !code) {
-      return res.status(400).json({ message: "Email and code are required" });
+      return res.status(400).json({
+        message: "Email and code are required",
+      });
     }
+
     const user = await verifyUser({ email, code });
-    res.status(200).json({ message: "Email verified successfully", user });
+
+    res.status(200).json({
+      message: "Email verified successfully",
+      user,
+    });
   } catch (err) {
     next(err);
   }
@@ -43,22 +60,38 @@ async function verify(req, res, next) {
 async function login(req, res, next) {
   try {
     const { email, password } = req.body;
+
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
     }
 
     const deviceInfo = req.headers["user-agent"] || null;
     const ipAddress = req.ip;
 
-    const { accessToken, refreshToken, user } = await loginUser({
+    const {
+      accessToken,
+      refreshToken,
+      user,
+    } = await loginUser({
       email,
       password,
       deviceInfo,
       ipAddress,
     });
 
-    res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
-    res.status(200).json({ message: "Login successful", accessToken, user });
+    res.cookie(
+      "refreshToken",
+      refreshToken,
+      REFRESH_COOKIE_OPTIONS
+    );
+
+    res.status(200).json({
+      message: "Login successful",
+      accessToken,
+      user,
+    });
   } catch (err) {
     next(err);
   }
@@ -67,8 +100,26 @@ async function login(req, res, next) {
 async function refresh(req, res, next) {
   try {
     const refreshToken = req.cookies?.refreshToken;
-    const { accessToken } = await refreshAccessToken({ refreshToken });
-    res.status(200).json({ accessToken });
+
+    const {
+      accessToken,
+      refreshToken: newRefreshToken,
+    } = await refreshAccessToken({
+      refreshToken,
+    });
+
+    // IMPORTANT:
+    // Refresh-token rotation creates a new token.
+    // Replace the old browser cookie with the new one.
+    res.cookie(
+      "refreshToken",
+      newRefreshToken,
+      REFRESH_COOKIE_OPTIONS
+    );
+
+    res.status(200).json({
+      accessToken,
+    });
   } catch (err) {
     next(err);
   }
@@ -77,9 +128,17 @@ async function refresh(req, res, next) {
 async function logout(req, res, next) {
   try {
     const refreshToken = req.cookies?.refreshToken;
+
     await logoutUser({ refreshToken });
-    res.clearCookie("refreshToken", REFRESH_COOKIE_OPTIONS);
-    res.status(200).json({ message: "Logged out" });
+
+    res.clearCookie(
+      "refreshToken",
+      REFRESH_COOKIE_OPTIONS
+    );
+
+    res.status(200).json({
+      message: "Logged out",
+    });
   } catch (err) {
     next(err);
   }
@@ -88,12 +147,28 @@ async function logout(req, res, next) {
 async function logoutAll(req, res, next) {
   try {
     const refreshToken = req.cookies?.refreshToken;
+
     await logoutAllUser({ refreshToken });
-    res.clearCookie("refreshToken", REFRESH_COOKIE_OPTIONS);
-    res.status(200).json({ message: "Logged out from all devices" });
+
+    res.clearCookie(
+      "refreshToken",
+      REFRESH_COOKIE_OPTIONS
+    );
+
+    res.status(200).json({
+      message: "Logged out from all devices",
+    });
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { register, verify, login, refresh, logout, logoutAll };
+module.exports = {
+  register,
+  verify,
+  login,
+  refresh,
+  logout,
+  logoutAll,
+};
+
