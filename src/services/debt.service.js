@@ -263,58 +263,83 @@ async function getDebtOwnedByUser(userId, debtId) {
   return debt;
 }
 
-
-
 async function getDebtDetail(userId, debtId) {
   const debt = await getDebtOwnedByUser(userId, debtId);
 
   const payments = await prisma.payment.findMany({
-    where: { debtId },
-    orderBy: { paidAt: "desc" },
+    where: {
+      debtId: debt.id,
+    },
+    orderBy: {
+      paidAt: "desc",
+    },
   });
 
   const totalPaid = payments.reduce(
-    (sum, payment) => sum + Number(payment.amount),
+    (sum, payment) =>
+      sum + Number(payment.amount),
     0
   );
 
-  let principalOutstanding = 0;
-  let creditCardOutstanding = 0;
+  let principalOutstanding = null;
+  let creditCardOutstanding = null;
 
-  if (
-    debt.debtType === "credit_card"
-  ) {
+ 
+  if (debt.debtType === "credit_card") {
+    // currentOutstanding is already the CURRENT balance.
+    // Payments have already been deducted from it.
     creditCardOutstanding = Math.max(
       0,
-      Number(debt.currentOutstanding || 0) - totalPaid
-    );
-  } else {
-    principalOutstanding = Math.max(
-      0,
-      Number(debt.principal || 0) - totalPaid
+      Number(debt.currentOutstanding || 0)
     );
   }
+
+ 
+  if (
+    debt.debtType === "loan" ||
+    debt.debtType === "third_party"
+  ) {
+    principalOutstanding = Math.max(
+      0,
+      Number(debt.principal || 0) -
+        totalPaid
+    );
+  }
+
+ 
+
+  const baseOutstanding =
+    debt.debtType === "credit_card"
+      ? creditCardOutstanding
+      : principalOutstanding;
 
   const penaltyOutstanding = Number(
     debt.penaltyOutstanding || 0
   );
 
   const totalOutstanding =
-    debt.debtType === "credit_card"
-      ? creditCardOutstanding + penaltyOutstanding
-      : principalOutstanding + penaltyOutstanding;
+    baseOutstanding + penaltyOutstanding;
 
   return {
     ...debt,
+
     totalPaid,
+
     principalOutstanding,
+
     creditCardOutstanding,
+
     penaltyOutstanding,
+
     totalOutstanding,
+
     paymentsCount: payments.length,
+
     payments,
   };
 }
+
+
 
 
 

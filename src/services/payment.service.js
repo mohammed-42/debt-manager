@@ -1,3 +1,4 @@
+
 const prisma = require("../config/db");
 const { getDebtOwnedByUser } = require("./debt.service");
 
@@ -6,10 +7,7 @@ async function createPayment(userId, debtId, data) {
 
   const { amount, paidAt, prepaymentChoice } = data;
 
-  // ============================================================
-  // COMMON VALIDATION
-  // ============================================================
-
+  
   if (
     amount === undefined ||
     amount === null ||
@@ -30,16 +28,11 @@ async function createPayment(userId, debtId, data) {
     : new Date();
 
   if (isNaN(effectivePaidAt.getTime())) {
-    const err = new Error(
-      "paidAt must be a valid date"
-    );
+    const err = new Error("paidAt must be a valid date");
     err.status = 400;
     throw err;
   }
 
-  // ============================================================
-  // GET PREVIOUS PAYMENTS
-  // ============================================================
 
   const previousPayments = await prisma.payment.findMany({
     where: { debtId: debt.id },
@@ -51,29 +44,24 @@ async function createPayment(userId, debtId, data) {
     0
   );
 
-  // ============================================================
-  // CALCULATE OUTSTANDING BALANCE
-  // ============================================================
-
+ 
   let outstandingBeforePayment;
 
   if (debt.debtType === "credit_card") {
+    // For credit cards, currentOutstanding is the ACTUAL
+    // current balance. Do not subtract previous payments again.
     outstandingBeforePayment = Math.max(
       0,
-      Number(debt.currentOutstanding || 0) -
-        totalPaidBefore
+      Number(debt.currentOutstanding || 0)
     );
   } else {
+    // Loans / third-party debts continue to derive their
+    // outstanding balance from principal minus payments.
     outstandingBeforePayment = Math.max(
       0,
-      Number(debt.principal || 0) -
-        totalPaidBefore
+      Number(debt.principal || 0) - totalPaidBefore
     );
   }
-
-  // ============================================================
-  // PAYMENT CANNOT EXCEED BALANCE
-  // ============================================================
 
   if (paymentAmount > outstandingBeforePayment) {
     const err = new Error(
@@ -83,10 +71,7 @@ async function createPayment(userId, debtId, data) {
     throw err;
   }
 
-  // ============================================================
-  // CREDIT CARD
-  // ============================================================
-
+ 
   let isPrepayment = false;
 
   if (debt.debtType === "credit_card") {
@@ -100,10 +85,7 @@ async function createPayment(userId, debtId, data) {
     }
   }
 
-  // ============================================================
-  // LOAN / THIRD-PARTY PREPAYMENT
-  // ============================================================
-
+  
   if (
     debt.debtType === "loan" ||
     debt.debtType === "third_party"
@@ -140,10 +122,7 @@ async function createPayment(userId, debtId, data) {
     }
   }
 
-  // ============================================================
-  // DETERMINE PAYMENT STATUS
-  // ============================================================
-
+ 
   const paymentDay = new Date(
     effectivePaidAt.getFullYear(),
     effectivePaidAt.getMonth(),
@@ -182,10 +161,7 @@ async function createPayment(userId, debtId, data) {
     }
   }
 
-  // ============================================================
-  // PENALTY
-  // ============================================================
-
+  
   let penaltyApplied = 0;
 
   if (status === "late") {
@@ -207,21 +183,17 @@ async function createPayment(userId, debtId, data) {
     }
   }
 
-  // ============================================================
-  // REMAINING BALANCE
-  // ============================================================
 
   const remainingBalance = Math.max(
     0,
     outstandingBeforePayment - paymentAmount
   );
 
-  // ============================================================
-  // DATABASE TRANSACTION
-  // ============================================================
+ 
 
   const result = await prisma.$transaction(
     async (tx) => {
+  
       const payment =
         await tx.payment.create({
           data: {
@@ -238,7 +210,22 @@ async function createPayment(userId, debtId, data) {
           },
         });
 
-      // Add late penalty
+      
+
+      if (debt.debtType === "credit_card") {
+        await tx.debt.update({
+          where: {
+            id: debt.id,
+          },
+          data: {
+            currentOutstanding: {
+              decrement: paymentAmount,
+            },
+          },
+        });
+      }
+
+      
       if (penaltyApplied > 0) {
         await tx.debt.update({
           where: {
@@ -252,10 +239,7 @@ async function createPayment(userId, debtId, data) {
         });
       }
 
-      // ========================================================
-      // LOAN / THIRD-PARTY PREPAYMENT
-      // ========================================================
-
+    
       if (
         isPrepayment &&
         debt.debtType !== "credit_card" &&
@@ -307,10 +291,6 @@ async function createPayment(userId, debtId, data) {
         }
       }
 
-      // ========================================================
-      // COMPLETE DEBT
-      // ========================================================
-
       if (remainingBalance === 0) {
         const currentPenaltyOutstanding =
           Number(
@@ -348,10 +328,6 @@ async function createPayment(userId, debtId, data) {
   return result;
 }
 
-// ============================================================
-// LIST PAYMENTS
-// ============================================================
-
 async function listPayments(
   userId,
   debtId
@@ -373,3 +349,4 @@ module.exports = {
   createPayment,
   listPayments,
 };
+
