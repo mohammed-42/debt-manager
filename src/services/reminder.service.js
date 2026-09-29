@@ -1,19 +1,29 @@
 const prisma = require("../config/db");
-const { sendReminderEmail, sendOverdueEmail } = require("./email.service");
+const {
+  sendReminderEmail,
+  sendOverdueEmail,
+} = require("./email.service");
 
 const REMINDER_WINDOW_DAYS = 3;
 
-function startOfToday() {
-  const d = new Date();
+function startOfDay(date) {
+  const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-function startOfMonth() {
-  const d = new Date();
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  return d;
+function getCurrentCycleStart(today, dueDay) {
+  const year = today.getFullYear();
+  const month = today.getMonth();
+
+  const dueDateThisMonth = new Date(year, month, dueDay);
+  dueDateThisMonth.setHours(0, 0, 0, 0);
+
+  if (today >= dueDateThisMonth) {
+    return dueDateThisMonth;
+  }
+
+  return new Date(year, month - 1, dueDay);
 }
 
 async function checkAndSendReminders() {
@@ -22,28 +32,86 @@ async function checkAndSendReminders() {
     include: { user: true },
   });
 
-  const today = startOfToday();
-  const monthStart = startOfMonth();
+  const today = startOfDay(new Date());
 
   for (const debt of debts) {
-    const dueDateThisCycle = new Date(today.getFullYear(), today.getMonth(), debt.dueDay);
-    dueDateThisCycle.setHours(0, 0, 0, 0);
+    const dueDateThisMonth = startOfDay(
+      new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        debt.dueDay
+      )
+    );
 
-    const existingPayment = await prisma.payment.findFirst({
-      where: { debtId: debt.id, paidAt: { gte: monthStart } },
-    });
+    const cycleStart = getCurrentCycleStart(
+      today,
+      debt.dueDay
+    );
 
-    if (existingPayment) continue;
+    const paymentsThisCycle =
+      await prisma.payment.findMany({
+        where: {
+          debtId: debt.id,
+          paidAt: {
+            gte: cycleStart,
+          },
+        },
+        select: {
+          amount: true,
+        },
+      });
 
-    const daysUntilDue = Math.round((dueDateThisCycle - today) / (1000 * 60 * 60 * 24));
-    const dueDateStr = dueDateThisCycle.toDateString();
+    const totalPaidThisCycle =
+      paymentsThisCycle.reduce(
+        (sum, payment) =>
+          sum + Number(payment.amount),
+        0
+      );
 
-    if (daysUntilDue >= 0 && daysUntilDue <= REMINDER_WINDOW_DAYS) {
-      await sendReminderEmail(debt.user.email, debt.name, daysUntilDue, dueDateStr);
+    const requiredMonthlyPayment =
+      debt.debtType === "credit_card"
+        ? Number(debt.minimumPayment || 0)
+        : Number(debt.monthlyRepayment || 0);
+
+    const remainingMonthlyPayment =
+      Math.max(
+        0,
+        requiredMonthlyPayment -
+          totalPaidThisCycle
+      );
+
+    if (remainingMonthlyPayment === 0) {
+      continue;
+    }
+
+    const daysUntilDue = Math.round(
+      (dueDateThisMonth - today) /
+        (1000 * 60 * 60 * 24)
+    );
+
+    const dueDateStr =
+      dueDateThisMonth.toDateString();
+
+    if (
+      daysUntilDue >= 0 &&
+      daysUntilDue <= REMINDER_WINDOW_DAYS
+    ) {
+      await sendReminderEmail(
+        debt.user.email,
+        debt.name,
+        daysUntilDue,
+        dueDateStr
+      );
     } else if (daysUntilDue < 0) {
-      await sendOverdueEmail(debt.user.email, debt.name, dueDateStr);
+      await sendOverdueEmail(
+        debt.user.email,
+        debt.name,
+        dueDateStr
+      );
     }
   }
 }
 
-module.exports = { checkAndSendReminders };
+module.exports = {
+  checkAndSendReminders,
+};
