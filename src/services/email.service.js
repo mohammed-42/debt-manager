@@ -1,10 +1,21 @@
-const { Resend } = require("resend");
+require("dotenv").config();
+const nodemailer = require("nodemailer");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = process.env.EMAIL_FROM || "onboarding@resend.dev";
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  family: 4,
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
+
+const FROM_EMAIL = process.env.GMAIL_USER;
 
 async function sendVerificationEmail(to, code) {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM_EMAIL,
     to,
     subject: "Verify your email",
@@ -12,9 +23,18 @@ async function sendVerificationEmail(to, code) {
   });
 }
 
-async function sendReminderEmail(to, debtName, daysUntilDue, dueDateStr) {
-  const dayWord = daysUntilDue === 0 ? "today" : `in ${daysUntilDue} day${daysUntilDue > 1 ? "s" : ""}`;
-  await resend.emails.send({
+async function sendReminderEmail(
+  to,
+  debtName,
+  daysUntilDue,
+  dueDateStr
+) {
+  const dayWord =
+    daysUntilDue === 0
+      ? "today"
+      : `in ${daysUntilDue} day${daysUntilDue > 1 ? "s" : ""}`;
+
+  await transporter.sendMail({
     from: FROM_EMAIL,
     to,
     subject: `Payment reminder: ${debtName} due ${dayWord}`,
@@ -22,8 +42,12 @@ async function sendReminderEmail(to, debtName, daysUntilDue, dueDateStr) {
   });
 }
 
-async function sendOverdueEmail(to, debtName, dueDateStr) {
-  await resend.emails.send({
+async function sendOverdueEmail(
+  to,
+  debtName,
+  dueDateStr
+) {
+  await transporter.sendMail({
     from: FROM_EMAIL,
     to,
     subject: `Overdue: ${debtName} payment missed`,
@@ -31,4 +55,8 @@ async function sendOverdueEmail(to, debtName, dueDateStr) {
   });
 }
 
-module.exports = { sendVerificationEmail, sendReminderEmail, sendOverdueEmail };
+module.exports = {
+  sendVerificationEmail,
+  sendReminderEmail,
+  sendOverdueEmail,
+};

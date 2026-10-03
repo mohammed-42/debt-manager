@@ -54,6 +54,7 @@ async function checkAndSendReminders() {
           debtId: debt.id,
           paidAt: {
             gte: cycleStart,
+            lte: today,
           },
         },
         select: {
