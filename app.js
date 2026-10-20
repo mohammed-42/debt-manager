@@ -12,10 +12,10 @@ const app = express();
 
 // CORS configuration
 const allowedOrigins = [
-   "http://localhost:5173",
+  "http://localhost:5173",
   "http://localhost:5174",
-  "https://debt-manager-n5nifl23k-mohammed-42.vercel.app",
-  "https://debt-manager-mu.vercel.app",
+  "https://debt-manager-git-main-mohammed-42.vercel.app",
+  "https://debt-manager-gs5g8czxd-mohammed-42.vercel.app",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
