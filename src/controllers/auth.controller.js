@@ -3,6 +3,7 @@ const {
   registerUser,
   verifyUser,
   loginUser,
+  resendVerificationCode,
   refreshAccessToken,
   logoutUser,
   logoutAllUser,
@@ -56,6 +57,26 @@ async function verify(req, res, next) {
     next(err);
   }
 }
+
+
+async function resendVerification(req, res, next) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required",
+      });
+    }
+
+    const result = await resendVerificationCode({ email });
+
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 
 async function login(req, res, next) {
   try {
@@ -166,6 +187,7 @@ async function logoutAll(req, res, next) {
 module.exports = {
   register,
   verify,
+  resendVerification,
   login,
   refresh,
   logout,

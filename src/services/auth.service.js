@@ -126,6 +126,43 @@ async function verifyUser({ email, code }) {
   };
 }
 
+
+async function resendVerificationCode({ email }) {
+  const user = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  // Use a generic response for missing or already-verified accounts.
+  if (!user || user.isVerified) {
+    return {
+      message: "If the account needs verification, a new code will be sent.",
+    };
+  }
+
+  const code = generateVerificationCode();
+  const verificationCodeHash = await hashVerificationCode(code);
+
+  const verificationCodeExpiry = new Date(
+    Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000
+  );
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      verificationCodeHash,
+      verificationCodeExpiry,
+      verificationAttempts: 0,
+    },
+  });
+
+  await sendVerificationEmail(user.email, code);
+
+  return {
+    message: "If the account needs verification, a new code will be sent.",
+  };
+}
+
+
 async function loginUser({ email, password, deviceInfo, ipAddress }) {
   const user = await prisma.user.findUnique({
     where: { email },
@@ -343,4 +380,5 @@ module.exports = {
   refreshAccessToken,
   logoutUser,
   logoutAllUser,
+  resendVerificationCode,
 };
